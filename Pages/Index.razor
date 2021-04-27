@@ -1,0 +1,132 @@
+﻿@page "/"
+@using Services
+@using Data
+@inject IServicesTodoList servicesTodoList
+
+<div class="container shadow p-3 mb-5 bg-white rounded">
+
+    <div class="row">
+        <div class="col-sm-4">
+            <EditForm class="needs-validation" Model="@TareasModel" OnValidSubmit="SaveTarea">
+                <ValidationSummary />
+                <div class="form-row">
+                    <div class="col-md-12 mb-3">
+                        <label>Tarea</label>
+                        <InputText type="text" @bind-Value="@TareasModel.Tarea" class="form-control" />
+                        <ValidationMessage For="@(() => TareasModel.Tarea)" />
+                    </div>
+                </div>
+                <button class="btn @(IsEditing ? "btn-secondary" : "btn-primary") btn-lg btn-block">
+                    @(IsEditing ? "Editar" : "Guardar")
+                </button>
+            </EditForm>
+        </div>
+        <div class="col-sm-8">
+            @if (tareas == null)
+            {
+                <p><em>Loading...</em></p>
+            }
+            else
+            {
+                <table class="table mt-3">
+                    <thead>
+                        <tr>
+                            <th>Tareas</th>
+                            <th>Marcar</th>
+                            <th>Editar</th>
+                            <th>Borrar</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var item in tareas)
+                        {
+                            <tr>
+                                <td>
+                                    @if (item.Estado)
+                                    {
+                                        <del>@item.Tarea</del>
+                                    }
+                                    else
+                                    {
+                                        @item.Tarea
+                                    }
+                                </td>
+                                <td>
+                                    <div class="custom-control custom-checkbox">
+                                        <input type="checkbox" class="custom-control-input" id="@item.Id"
+                                               @onchange="@((ChangeEventArgs __e) => Marcar(item))"
+                                               checked="@(item.Estado  ? true : false)">
+                                        <label class="custom-control-label" for="@item.Id"></label>
+                                    </div>
+                                </td>
+                                <td>
+                                    <button class="btn btn-primary" @onclick="@(() => Editar(item))">Editar</button>
+                                </td>
+                                <td>
+                                    <button class="btn btn-danger" @onclick="@(() => Borrar(item))"
+                                            disabled="@(IsEditing && item.Id == TareasModel.Id ? true : false)">Borrar</button>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            }
+        </div>
+    </div>
+</div>
+
+
+
+@code {
+    private IEnumerable<Tareas> tareas { get; set; }
+    private bool IsEditing = false;
+    private Tareas TareasModel = new Tareas();
+
+    protected async override Task OnInitializedAsync()
+    {
+        await GetTareas();
+    }
+
+    private async Task GetTareas()
+    {
+        tareas = await servicesTodoList.GetAllTodoList();
+    }
+
+    private async Task Marcar(Tareas tarea)
+    {
+        tarea.Estado = tarea.Estado ? false : true;
+        await servicesTodoList.EditTarea(tarea);
+    }
+
+    private async Task Borrar(Tareas tarea)
+    {
+        await servicesTodoList.DeleteTarea(tarea);
+        await GetTareas();
+    }
+
+    private async Task SaveTarea()
+    {
+        if (TareasModel.Tarea != null)
+        {
+            if (IsEditing)
+            {
+                await servicesTodoList.EditTarea(TareasModel);
+                IsEditing = false;
+                TareasModel = new Tareas();
+                await GetTareas();
+            }
+            else
+            {
+                await servicesTodoList.SaveTarea(TareasModel);
+                TareasModel = new Tareas();
+                await GetTareas();
+            }
+        }
+    }
+
+    private void Editar(Tareas tarea)
+    {
+        IsEditing = true;
+        TareasModel = tarea;
+    }
+}
